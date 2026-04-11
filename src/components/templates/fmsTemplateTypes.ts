@@ -1,0 +1,52 @@
+export type FmsTemplate = {
+  _id: string;
+  name: string;
+  sourceFileName: string;
+  sheetName?: string;
+  totalTasks: number;
+  headerRow1: string[];
+  headerRow2: string[];
+  importedAt: string;
+  updatedAt?: string;
+};
+
+export type FmsTask = {
+  _id: string;
+  templateId: string;
+  rowNumber: number;
+  taskForDelegation: string;
+  mainHeading: string;
+  subHeading: string;
+  taskNumber: string;
+  processes: string;
+  parallelSteps: string;
+  taskDescription: string;
+  ownerCode: string;
+  methodCode: string;
+  dueRule: string;
+  processNotes: string;
+  spacesName: string;
+  plannedFmsDate: string;
+  delegationDate: string;
+  changedDelegationDate: string;
+  secondaryDelegationDate: string;
+  drawingNumber: string;
+  status: string;
+  assigneeName: string;
+  reasonComment: string;
+  taskLink: string;
+  reviewCode: string;
+  reviewName: string;
+  supportCode: string;
+  supportName: string;
+  rawCells: string[];
+  title: string;
+  dependsOnTaskIds: string[];
+  relationshipType: string;
+  position: {
+    x: number;
+    y: number;
+    width?: number;
+    height?: number;
+  };
+};

@@ -1,0 +1,24 @@
+<svg width="231" height="48" viewBox="0 0 231 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- AgroMach Auth Logo -->
+  <text x="0" y="32" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="#2D5016">Agro</text>
+<defs>
+    <linearGradient id="machGradientAuth" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#4A7C59;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2D5016;stop-opacity:1" />
+    </linearGradient>
+</defs>
+  <text x="80" y="32" font-family="Arial, sans-serif" font-size="28" font-weight="bold" fill="url(#machGradientAuth)">Mach</text>
+  
+  <!-- Wheat stalks graphic -->
+  <g transform="translate(180, 12)">
+    <path d="M0 20 Q2 15 4 20 Q6 10 8 20 Q10 12 12 20 Q14 8 16 20 Q18 14 20 20" 
+          stroke="#2D5016" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M2 18 Q3 16 4 18 Q6 12 8 18 Q10 14 12 18 Q14 10 16 18 Q18 16 20 18" 
+          stroke="#2D5016" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <path d="M1 19 Q2 17 3 19 Q5 11 7 19 Q9 13 11 19 Q13 9 15 19 Q17 15 19 19" 
+          stroke="#2D5016" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Tagline -->
+  <text x="0" y="44" font-family="Georgia, serif" font-size="12" font-style="italic" fill="#2D5016">Symbol of quality and trust ....</text>
+</svg>
