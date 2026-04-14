@@ -14,6 +14,7 @@ const PERMISSION_PATHS: { [key: string]: string } = {
   '/Master/machine': 'Machine',
   '/Master/process-links': 'Process',
   '/Master/customers': 'Customer',
+  '/Master/roles': 'Roles',
   '/Templates/fms-template': 'FMS Template',
   '/Templates/fms-template/table': 'FMS Template Table',
   '/Templates/fms-template/flow': 'FMS Template Flow',

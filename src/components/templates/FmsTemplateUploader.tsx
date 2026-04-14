@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import FmsTemplateNav from "./FmsTemplateNav";
 import type { FmsTemplate } from "./fmsTemplateTypes";
 
 type ApiState = {
@@ -100,9 +99,6 @@ export default function FmsTemplateUploader() {
           Upload an FMS CSV, persist every task into MongoDB, and reuse it in table and flow layouts.
         </p>
       </div>
-
-      <FmsTemplateNav />
-
       <div className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <div className="rounded-2xl border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Upload FMS Template</h2>

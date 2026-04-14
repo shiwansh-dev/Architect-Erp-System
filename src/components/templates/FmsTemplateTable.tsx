@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import FmsTemplateNav from "./FmsTemplateNav";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FmsTask, FmsTemplate } from "./fmsTemplateTypes";
 import Pagination from "@/components/tables/Pagination";
 
 type TemplateDetails = {
   template: FmsTemplate;
   tasks: FmsTask[];
+  ownerCodes?: string[];
+  validation?: {
+    invalidOwnerCodeCount: number;
+    currentPageInvalidTaskIds: string[];
+    firstInvalidTaskId: string;
+    firstInvalidPage: number | null;
+    ownerCodes: string[];
+  };
   pagination?: {
     currentPage: number;
     limit: number;
@@ -18,11 +25,23 @@ type TemplateDetails = {
   } | null;
 };
 
+const OWNER_CODE_COLUMN_INDEX = 7;
+
 export default function FmsTemplateTable() {
+  const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
+  const contentRef = useRef<HTMLDivElement | null>(null);
   const [templates, setTemplates] = useState<FmsTemplate[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [template, setTemplate] = useState<FmsTemplate | null>(null);
   const [tasks, setTasks] = useState<FmsTask[]>([]);
+  const [validation, setValidation] = useState({
+    invalidOwnerCodeCount: 0,
+    currentPageInvalidTaskIds: [] as string[],
+    firstInvalidTaskId: "",
+    firstInvalidPage: null as number | null,
+    ownerCodes: [] as string[],
+  });
+  const [pendingFocusTaskId, setPendingFocusTaskId] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pagination, setPagination] = useState({
     currentPage: 1,
@@ -87,6 +106,15 @@ export default function FmsTemplateTable() {
 
         setTemplate(data.template);
         setTasks(data.tasks);
+        setValidation(
+          data.validation || {
+            invalidOwnerCodeCount: 0,
+            currentPageInvalidTaskIds: [],
+            firstInvalidTaskId: "",
+            firstInvalidPage: null,
+            ownerCodes: data.ownerCodes || [],
+          }
+        );
         setPagination(
           data.pagination || {
             currentPage: 1,
@@ -107,18 +135,58 @@ export default function FmsTemplateTable() {
     void loadTemplateDetails();
   }, [selectedTemplateId, currentPage]);
 
-  const visibleRows = useMemo(() => tasks.map((task) => task.rawCells), [tasks]);
+  useEffect(() => {
+    if (!pendingFocusTaskId) {
+      return;
+    }
+
+    const row = rowRefs.current[pendingFocusTaskId];
+    if (!row) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      row.scrollIntoView({ behavior: "smooth", block: "center" });
+      setPendingFocusTaskId("");
+    });
+  }, [pendingFocusTaskId, tasks]);
+
+  const invalidTaskIdSet = useMemo(
+    () => new Set(validation.currentPageInvalidTaskIds),
+    [validation.currentPageInvalidTaskIds]
+  );
+
+  const handleShowError = () => {
+    if (!validation.invalidOwnerCodeCount) {
+      return;
+    }
+
+    const targetPage = validation.firstInvalidPage;
+    const targetTaskId = validation.firstInvalidTaskId;
+    if (!targetPage || !targetTaskId) {
+      return;
+    }
+
+    setPendingFocusTaskId(targetTaskId);
+    if (targetPage !== currentPage) {
+      setCurrentPage(targetPage);
+      return;
+    }
+
+    contentRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const row = rowRefs.current[targetTaskId];
+    row?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
 
   return (
     <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">FMS Template Table</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Template Tasks</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
           This view keeps the spreadsheet-style layout so the imported template remains easy to compare against the source CSV.
         </p>
       </div>
-
-      <FmsTemplateNav />
 
       <div className="rounded-2xl border border-stroke bg-white p-6 shadow-default dark:border-strokedark dark:bg-boxdark">
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -153,7 +221,22 @@ export default function FmsTemplateTable() {
         ) : error ? (
           <div className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>
         ) : template ? (
-          <div className="space-y-4">
+          <div ref={contentRef} className="space-y-4">
+            {validation.invalidOwnerCodeCount ? (
+              <div className="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 md:flex-row md:items-center md:justify-between">
+                <p className="text-sm font-medium text-red-700">
+                  {validation.invalidOwnerCodeCount} task{validation.invalidOwnerCodeCount === 1 ? "" : "s"} have owner codes that are not in Master Roles.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleShowError}
+                  className="rounded-xl bg-red-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-700"
+                >
+                  Show
+                </button>
+              </div>
+            ) : null}
+
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Showing {(pagination.currentPage - 1) * pagination.limit + 1}-
@@ -197,18 +280,33 @@ export default function FmsTemplateTable() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleRows.map((row, rowIndex) => (
-                    <tr key={`row-${rowIndex}`} className="align-top odd:bg-white even:bg-gray-50/60 dark:odd:bg-gray-950 dark:even:bg-gray-900/40">
+                  {tasks.map((task, rowIndex) => {
+                    const row = task.rawCells || [];
+                    const hasOwnerCodeError = invalidTaskIdSet.has(task._id) || task.hasOwnerCodeError;
+                    return (
+                    <tr
+                      key={task._id}
+                      ref={(element) => {
+                        rowRefs.current[task._id] = element;
+                      }}
+                      className={`align-top odd:bg-white even:bg-gray-50/60 dark:odd:bg-gray-950 dark:even:bg-gray-900/40 ${
+                        hasOwnerCodeError ? "bg-red-50/80 ring-1 ring-inset ring-red-200 dark:bg-red-950/20" : ""
+                      }`}
+                    >
                       {row.map((cell, cellIndex) => (
                         <td
                           key={`cell-${rowIndex}-${cellIndex}`}
-                          className="max-w-[240px] whitespace-pre-wrap border border-gray-200 px-3 py-2 text-gray-700 dark:border-gray-800 dark:text-gray-300"
+                          className={`max-w-[240px] whitespace-pre-wrap border px-3 py-2 text-gray-700 dark:text-gray-300 ${
+                            hasOwnerCodeError && cellIndex === OWNER_CODE_COLUMN_INDEX
+                              ? "border-red-300 bg-red-100/80 font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+                              : "border-gray-200 dark:border-gray-800"
+                          }`}
                         >
                           {cell || "\u00A0"}
                         </td>
                       ))}
                     </tr>
-                  ))}
+                  )})}
                 </tbody>
               </table>
             </div>

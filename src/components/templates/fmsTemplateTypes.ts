@@ -43,6 +43,7 @@ export type FmsTask = {
   title: string;
   dependsOnTaskIds: string[];
   relationshipType: string;
+  hasOwnerCodeError?: boolean;
   position: {
     x: number;
     y: number;

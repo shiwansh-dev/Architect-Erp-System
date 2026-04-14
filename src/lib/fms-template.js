@@ -266,7 +266,10 @@ export function sanitizeTaskPatch(body) {
   const update = {};
   editableFields.forEach((field) => {
     if (Object.prototype.hasOwnProperty.call(body, field)) {
-      update[field] = typeof body[field] === "string" ? body[field].trim() : body[field];
+      const nextValue = typeof body[field] === "string" ? body[field].trim() : body[field];
+      update[field] = field === "ownerCode" && typeof nextValue === "string"
+        ? nextValue.toUpperCase()
+        : nextValue;
     }
   });
 

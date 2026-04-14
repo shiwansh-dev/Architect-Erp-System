@@ -3,8 +3,7 @@ import { ObjectId } from "mongodb";
 import clientPromise, { databaseName } from "@/lib/mongodb-fms-template";
 import { sanitizeTaskPatch, serializeTask } from "@/lib/fms-template";
 import {
-  syncTemplateBundleCache,
-  syncTemplateListCache,
+  updateCachedTemplateTask,
 } from "@/lib/fms-template-cache";
 
 export const runtime = "nodejs";
@@ -38,10 +37,7 @@ export async function PATCH(request, { params }) {
       return NextResponse.json({ error: "Task not found after update" }, { status: 404 });
     }
 
-    await Promise.all([
-      syncTemplateBundleCache(db, updatedTask.templateId),
-      syncTemplateListCache(db),
-    ]);
+    void updateCachedTemplateTask(updatedTask.templateId.toString(), updatedTask);
 
     return NextResponse.json({
       message: "Task updated successfully",

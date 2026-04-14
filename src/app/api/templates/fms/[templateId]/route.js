@@ -1,12 +1,60 @@
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise, { databaseName } from "@/lib/mongodb-fms-template";
+import masterClientPromise, { databaseName as masterDatabaseName } from "@/lib/mongodb";
 import {
   getCachedTemplateBundle,
   syncTemplateBundleCache,
 } from "@/lib/fms-template-cache";
 
 export const runtime = "nodejs";
+
+async function getActiveOwnerCodes() {
+  const masterClient = await masterClientPromise;
+  const masterDb = masterClient.db(masterDatabaseName);
+  const roles = await masterDb
+    .collection("master_roles")
+    .find({ isActive: { $ne: false } }, { projection: { roleCode: 1 } })
+    .sort({ roleCode: 1 })
+    .toArray();
+
+  return roles
+    .map((role) => String(role.roleCode || "").trim().toUpperCase())
+    .filter(Boolean);
+}
+
+function buildValidationMeta(allTasks, taskRows, ownerCodes, limit) {
+  const ownerCodeSet = new Set(ownerCodes);
+  const shouldValidateOwnerCodes = ownerCodeSet.size > 0;
+  const invalidTasks = shouldValidateOwnerCodes
+    ? allTasks.filter((task) => {
+        const ownerCode = String(task.ownerCode || "").trim().toUpperCase();
+        return Boolean(ownerCode) && !ownerCodeSet.has(ownerCode);
+      })
+    : [];
+
+  const invalidTaskIds = new Set(invalidTasks.map((task) => task._id));
+  const currentPageInvalidTaskIds = taskRows
+    .filter((task) => invalidTaskIds.has(task._id))
+    .map((task) => task._id);
+  const firstInvalidTask = invalidTasks[0] || null;
+
+  return {
+    invalidOwnerCodeCount: invalidTasks.length,
+    currentPageInvalidTaskIds,
+    firstInvalidTaskId: firstInvalidTask?._id || "",
+    firstInvalidPage: firstInvalidTask ? Math.floor(allTasks.findIndex((task) => task._id === firstInvalidTask._id) / limit) + 1 : null,
+    ownerCodes,
+  };
+}
+
+function attachOwnerCodeErrors(tasks, invalidTaskIds) {
+  const invalidSet = new Set(invalidTaskIds);
+  return tasks.map((task) => ({
+    ...task,
+    hasOwnerCodeError: invalidSet.has(task._id),
+  }));
+}
 
 export async function GET(_request, { params }) {
   try {
@@ -30,6 +78,7 @@ export async function GET(_request, { params }) {
     if (!bundle?.template) {
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
+    const ownerCodes = await getActiveOwnerCodes();
     const allTasks = Array.isArray(bundle.tasks) ? bundle.tasks : [];
     const totalTasks = allTasks.length;
     const projectedTasks =
@@ -60,10 +109,13 @@ export async function GET(_request, { params }) {
       ? projectedTasks.slice((page - 1) * limit, page * limit)
       : projectedTasks;
     const totalPages = Math.max(1, Math.ceil(totalTasks / limit));
+    const validation = buildValidationMeta(allTasks, taskRows, ownerCodes, limit);
 
     return NextResponse.json({
       template: bundle.template,
-      tasks: taskRows,
+      tasks: attachOwnerCodeErrors(taskRows, validation.currentPageInvalidTaskIds),
+      ownerCodes,
+      validation,
       pagination:
         shouldPaginate
           ? {
@@ -80,6 +132,144 @@ export async function GET(_request, { params }) {
     console.error("Error fetching template details:", error);
     return NextResponse.json(
       { error: "Failed to load template details" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request, { params }) {
+  try {
+    const { templateId } = await params;
+
+    if (!ObjectId.isValid(templateId)) {
+      return NextResponse.json({ error: "Invalid template id" }, { status: 400 });
+    }
+
+    const requestUrl = request?.url ? new URL(request.url) : null;
+    const page = Math.max(1, Number.parseInt(requestUrl?.searchParams.get("page") || "1", 10) || 1);
+    const limitParam = Number.parseInt(requestUrl?.searchParams.get("limit") || "100", 10) || 100;
+    const limit = Math.min(Math.max(limitParam, 1), 500);
+    const body = await request.json().catch(() => ({}));
+
+    if (!body?.action) {
+      return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db(databaseName);
+    const _id = new ObjectId(templateId);
+    const now = new Date();
+
+    const template = await db.collection("fms_templates").findOne({ _id });
+    if (!template) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    if (body.action === "reset-layout") {
+      await db.collection("fms_template_tasks").updateMany(
+        { templateId: _id },
+        {
+          $unset: { position: "" },
+          $set: { updatedAt: now },
+        }
+      );
+
+      await db.collection("fms_templates").updateOne(
+        { _id },
+        { $set: { updatedAt: now } }
+      );
+    } else if (body.action === "save-layout") {
+      const tasks = Array.isArray(body.tasks) ? body.tasks : [];
+      if (!tasks.length) {
+        return NextResponse.json({ error: "No task positions provided" }, { status: 400 });
+      }
+
+      const operations = tasks
+        .filter(
+          (task) =>
+            ObjectId.isValid(task?._id) &&
+            task?.position &&
+            typeof task.position === "object"
+        )
+        .map((task) => ({
+          updateOne: {
+            filter: {
+              _id: new ObjectId(task._id),
+              templateId: _id,
+            },
+            update: {
+              $set: {
+                position: {
+                  x: Number(task.position.x) || 0,
+                  y: Number(task.position.y) || 0,
+                  width: Number(task.position.width) || 280,
+                  height: Number(task.position.height) || 132,
+                },
+                updatedAt: now,
+              },
+            },
+          },
+        }));
+
+      if (!operations.length) {
+        return NextResponse.json({ error: "No valid task positions provided" }, { status: 400 });
+      }
+
+      await db.collection("fms_template_tasks").bulkWrite(operations, { ordered: false });
+      await db.collection("fms_templates").updateOne(
+        { _id },
+        { $set: { updatedAt: now } }
+      );
+    } else {
+      return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
+    }
+
+    const bundle = await syncTemplateBundleCache(db, _id);
+    const ownerCodes = await getActiveOwnerCodes();
+    const allTasks = Array.isArray(bundle?.tasks) ? bundle.tasks : [];
+    const projectedTasks = allTasks.map((task) => ({
+      _id: task._id,
+      templateId: task.templateId,
+      rowNumber: task.rowNumber,
+      taskNumber: task.taskNumber,
+      title: task.title,
+      processes: task.processes,
+      parallelSteps: task.parallelSteps,
+      taskDescription: task.taskDescription,
+      ownerCode: task.ownerCode,
+      assigneeName: task.assigneeName,
+      relationshipType: task.relationshipType,
+      dependsOnTaskIds: task.dependsOnTaskIds,
+      position: task.position,
+      mainHeading: task.mainHeading,
+      subHeading: task.subHeading,
+      dueRule: task.dueRule,
+      taskLink: task.taskLink,
+    }));
+    const totalTasks = projectedTasks.length;
+    const totalPages = Math.max(1, Math.ceil(totalTasks / limit));
+    const taskRows = projectedTasks.slice((page - 1) * limit, page * limit);
+    const validation = buildValidationMeta(allTasks, taskRows, ownerCodes, limit);
+
+    return NextResponse.json({
+      message: body.action === "save-layout" ? "Layout saved successfully" : "Layout reset successfully",
+      template: bundle.template,
+      tasks: attachOwnerCodeErrors(taskRows, validation.currentPageInvalidTaskIds),
+      ownerCodes,
+      validation,
+      pagination: {
+        currentPage: page,
+        limit,
+        totalTasks,
+        totalPages,
+        hasPrevPage: page > 1,
+        hasNextPage: page < totalPages,
+      },
+    });
+  } catch (error) {
+    console.error("Error resetting FMS template layout:", error);
+    return NextResponse.json(
+      { error: "Failed to reset template layout" },
       { status: 500 }
     );
   }

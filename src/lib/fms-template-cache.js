@@ -60,6 +60,32 @@ export async function setCachedTemplateBundle(templateId, payload) {
   );
 }
 
+export async function updateCachedTemplateTask(templateId, task) {
+  const cachedBundle = await getCachedTemplateBundle(templateId);
+  if (!cachedBundle || !Array.isArray(cachedBundle.tasks)) {
+    return false;
+  }
+
+  const serializedTask = serializeTask(task);
+  const existingIndex = cachedBundle.tasks.findIndex((item) => item._id === serializedTask._id);
+  const nextTasks = [...cachedBundle.tasks];
+
+  if (existingIndex === -1) {
+    nextTasks.push(serializedTask);
+    nextTasks.sort((a, b) => (a.rowNumber || 0) - (b.rowNumber || 0));
+  } else {
+    nextTasks[existingIndex] = {
+      ...nextTasks[existingIndex],
+      ...serializedTask,
+    };
+  }
+
+  return setCachedTemplateBundle(templateId, {
+    ...cachedBundle,
+    tasks: nextTasks,
+  });
+}
+
 export async function syncTemplateBundleCache(db, templateId) {
   const _id = typeof templateId === "string" ? new ObjectId(templateId) : templateId;
 

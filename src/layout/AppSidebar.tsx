@@ -54,6 +54,7 @@ const navItems: NavItem[] = [
       { name: "Machine", path: "/Master/machine", pro: false },
       { name: "Process", path: "/Master/process-links", pro: false },
       { name: "Customer", path: "/Master/customers", pro: false },
+      { name: "Roles", path: "/Master/roles", pro: false },
     ],
   },
   {

@@ -33,6 +33,7 @@ const SECTIONS: { label: string; items: { label: string; path: string }[] }[] = 
       { label: 'Machine', path: '/Master/machine' },
       { label: 'Process', path: '/Master/process-links' },
       { label: 'Customer', path: '/Master/customers' },
+      { label: 'Roles', path: '/Master/roles' },
     ],
   },
   {
