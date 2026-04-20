@@ -5,10 +5,13 @@ import masterClientPromise, { databaseName as masterDatabaseName } from "@/lib/m
 import { serializeTask, serializeTemplate } from "@/lib/fms-template";
 import {
   getCachedTemplateBundle,
+  invalidateTemplateBundleCache,
   syncTemplateBundleCache,
+  syncTemplateListCache,
 } from "@/lib/fms-template-cache";
 
 export const runtime = "nodejs";
+const TEMPLATE_ARCHIVE_COLLECTION = "fms_template_archive";
 
 async function getActiveOwnerCodes() {
   const masterClient = await masterClientPromise;
@@ -229,6 +232,21 @@ export async function PATCH(request, { params }) {
         { _id },
         { $set: { updatedAt: now } }
       );
+    } else if (body.action === "update-metadata") {
+      const name = String(body.name || "").trim();
+      if (!name) {
+        return NextResponse.json({ error: "Template name is required" }, { status: 400 });
+      }
+
+      await db.collection("fms_templates").updateOne(
+        { _id },
+        {
+          $set: {
+            name,
+            updatedAt: now,
+          },
+        }
+      );
     } else {
       return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
     }
@@ -269,7 +287,12 @@ export async function PATCH(request, { params }) {
     const validation = buildValidationMeta(allTasks, taskRows, ownerCodes, limit);
 
     return NextResponse.json({
-      message: body.action === "save-layout" ? "Layout saved successfully" : "Layout reset successfully",
+      message:
+        body.action === "save-layout"
+          ? "Layout saved successfully"
+          : body.action === "update-metadata"
+            ? "Template updated successfully"
+            : "Layout reset successfully",
       template: normalizedTemplate,
       tasks: attachOwnerCodeErrors(taskRows, validation.currentPageInvalidTaskIds),
       ownerCodes,
@@ -287,6 +310,62 @@ export async function PATCH(request, { params }) {
     console.error("Error resetting FMS template layout:", error);
     return NextResponse.json(
       { error: "Failed to reset template layout" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(_request, { params }) {
+  try {
+    const { templateId } = await params;
+
+    if (!ObjectId.isValid(templateId)) {
+      return NextResponse.json({ error: "Invalid template id" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db(databaseName);
+    const _id = new ObjectId(templateId);
+
+    const [template, tasks] = await Promise.all([
+      db.collection("fms_templates").findOne({ _id }),
+      db.collection("fms_template_tasks").find({ templateId: _id }).sort({ rowNumber: 1 }).toArray(),
+    ]);
+
+    if (!template) {
+      return NextResponse.json({ error: "Template not found" }, { status: 404 });
+    }
+
+    const now = new Date();
+    await db.collection(TEMPLATE_ARCHIVE_COLLECTION).insertOne({
+      templateId: _id,
+      archivedAt: now,
+      template: {
+        ...template,
+        archivedAt: now,
+      },
+      tasks,
+      totalTasks: tasks.length,
+    });
+
+    await Promise.all([
+      db.collection("fms_template_tasks").deleteMany({ templateId: _id }),
+      db.collection("fms_templates").deleteOne({ _id }),
+    ]);
+
+    await Promise.all([
+      invalidateTemplateBundleCache(templateId),
+      syncTemplateListCache(db),
+    ]);
+
+    return NextResponse.json({
+      message: "Template archived successfully",
+      archivedTemplateId: templateId,
+    });
+  } catch (error) {
+    console.error("Error archiving template:", error);
+    return NextResponse.json(
+      { error: "Failed to archive template" },
       { status: 500 }
     );
   }

@@ -200,7 +200,7 @@ export async function PATCH(request, { params }) {
     ]);
 
     const serializedTasks = nextTasks.map(serializeTask);
-    void setCachedProjectTasks(id, serializedTasks);
+    await setCachedProjectTasks(id, serializedTasks, now);
 
     return NextResponse.json({
       message:
@@ -294,7 +294,7 @@ export async function DELETE(request, { params }) {
     ]);
 
     const serializedTasks = nextTasks.map(serializeTask);
-    void setCachedProjectTasks(id, serializedTasks);
+    await setCachedProjectTasks(id, serializedTasks, now);
 
     return NextResponse.json({
       message: "Tasks deleted successfully",

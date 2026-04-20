@@ -211,6 +211,7 @@ export default function FmsTemplateFlow() {
   });
   const [pendingFocusTaskId, setPendingFocusTaskId] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(150);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     limit: 150,
@@ -234,7 +235,6 @@ export default function FmsTemplateFlow() {
     right: 1800,
     bottom: 1200,
   });
-  const PAGE_SIZE = 150;
 
   const applyTemplateDetails = (data: TemplateDetails) => {
     setTemplate(data.template);
@@ -254,7 +254,7 @@ export default function FmsTemplateFlow() {
     setPagination(
       data.pagination || {
         currentPage: 1,
-        limit: PAGE_SIZE,
+        limit: pageSize,
         totalTasks: data.tasks.length,
         totalPages: 1,
         hasPrevPage: false,
@@ -299,7 +299,7 @@ export default function FmsTemplateFlow() {
         const params = new URLSearchParams({
           view: "flow",
           page: String(currentPage),
-          limit: String(PAGE_SIZE),
+          limit: String(pageSize),
         });
         const response = await fetch(`/api/templates/fms/${selectedTemplateId}?${params.toString()}`, {
           cache: "no-store",
@@ -319,7 +319,11 @@ export default function FmsTemplateFlow() {
     };
 
     void loadTemplateDetails();
-  }, [selectedTemplateId, currentPage]);
+  }, [selectedTemplateId, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize, selectedTemplateId]);
 
   useEffect(() => {
     tasksRef.current = tasks;
@@ -595,7 +599,7 @@ export default function FmsTemplateFlow() {
       const params = new URLSearchParams({
         view: "flow",
         page: String(currentPage),
-        limit: String(PAGE_SIZE),
+        limit: String(pageSize),
       });
       const response = await fetch(`/api/templates/fms/${selectedTemplateId}?${params.toString()}`, {
         method: "PATCH",
@@ -633,7 +637,7 @@ export default function FmsTemplateFlow() {
       const params = new URLSearchParams({
         view: "flow",
         page: String(currentPage),
-        limit: String(PAGE_SIZE),
+        limit: String(pageSize),
       });
       const response = await fetch(`/api/templates/fms/${selectedTemplateId}?${params.toString()}`, {
         method: "PATCH",
@@ -823,6 +827,41 @@ export default function FmsTemplateFlow() {
   };
 
   const selectedDependencyIds = new Set(editingTask?.dependsOnTaskIds || []);
+  const paginationControls = template ? (
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <p className="text-sm text-gray-500 dark:text-gray-400">
+        Showing {(pagination.currentPage - 1) * pagination.limit + 1}-
+        {Math.min(pagination.currentPage * pagination.limit, pagination.totalTasks || tasks.length)} of{" "}
+        {pagination.totalTasks || tasks.length} tasks
+      </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+        <label className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+          <span>Tasks per page</span>
+          <select
+            value={pageSize}
+            onChange={(event) => setPageSize(Number(event.target.value) || 150)}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+          >
+            {[50, 100, 150, 200, 300].map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </label>
+        <Pagination
+          currentPage={pagination.currentPage}
+          totalPages={pagination.totalPages}
+          onPageChange={(page) => {
+            if (page < 1 || page > pagination.totalPages || page === pagination.currentPage) {
+              return;
+            }
+            setCurrentPage(page);
+          }}
+        />
+      </div>
+    </div>
+  ) : null;
 
   return (
     <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
@@ -874,25 +913,7 @@ export default function FmsTemplateFlow() {
           </div>
         </div>
 
-        {template ? (
-          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {(pagination.currentPage - 1) * pagination.limit + 1}-
-              {Math.min(pagination.currentPage * pagination.limit, pagination.totalTasks || tasks.length)} of{" "}
-              {pagination.totalTasks || tasks.length} tasks
-            </p>
-            <Pagination
-              currentPage={pagination.currentPage}
-              totalPages={pagination.totalPages}
-              onPageChange={(page) => {
-                if (page < 1 || page > pagination.totalPages || page === pagination.currentPage) {
-                  return;
-                }
-                setCurrentPage(page);
-              }}
-            />
-          </div>
-        ) : null}
+        {template ? <div className="mb-5">{paginationControls}</div> : null}
 
         {validation.invalidOwnerCodeCount ? (
           <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
@@ -926,7 +947,7 @@ export default function FmsTemplateFlow() {
         ) : !template ? (
           <p className="text-sm text-gray-500 dark:text-gray-400">No template selected.</p>
         ) : (
-          <div ref={flowSectionRef}>
+          <div ref={flowSectionRef} className="space-y-5">
             <div
               ref={scrollContainerRef}
               className="overflow-auto rounded-2xl border border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-950"
@@ -1147,6 +1168,7 @@ export default function FmsTemplateFlow() {
               })}
               </div>
             </div>
+            {paginationControls}
           </div>
         )}
       </div>

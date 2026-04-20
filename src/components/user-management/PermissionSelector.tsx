@@ -40,6 +40,7 @@ const SECTIONS: { label: string; items: { label: string; path: string }[] }[] = 
     label: 'Templates',
     items: [
       { label: 'FMS Template', path: '/Templates/fms-template' },
+      { label: 'Manage Templates', path: '/Templates/fms-template/manage' },
       { label: 'FMS Template Table', path: '/Templates/fms-template/table' },
       { label: 'FMS Template Flow', path: '/Templates/fms-template/flow' },
     ],

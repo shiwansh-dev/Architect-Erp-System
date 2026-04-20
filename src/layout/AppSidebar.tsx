@@ -57,6 +57,7 @@ const navItems: NavItem[] = [
     name: "Templates",
     subItems: [
       { name: "FMS Template", path: "/Templates/fms-template", pro: false },
+      { name: "Manage Templates", path: "/Templates/fms-template/manage", pro: false },
       { name: "FMS Table", path: "/Templates/fms-template/table", pro: false },
       { name: "FMS Flow", path: "/Templates/fms-template/flow", pro: false },
     ],

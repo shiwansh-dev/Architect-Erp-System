@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise, { databaseName } from "@/lib/mongodb-fms-template";
 import { serializeTask } from "@/lib/fms-template";
-import { getCachedProjectTasks, setCachedProjectTasks, deleteCachedProjectTasks } from "@/lib/project-task-cache";
+import {
+  getCachedProjectTaskBundle,
+  setCachedProjectTasks,
+  deleteCachedProjectTasks,
+  normalizeUpdatedAt,
+} from "@/lib/project-task-cache";
 import {
   buildActiveTaskSnapshot,
   recalculateProjectTaskState,
@@ -66,16 +71,25 @@ function projectTaskProjection(task) {
   };
 }
 
-async function loadProjectTasks(db, projectId) {
-  const cachedTasks = await getCachedProjectTasks(projectId.toString());
-  if (Array.isArray(cachedTasks)) {
-    return cachedTasks.map(serializeTask);
+async function loadProjectTasks(db, project) {
+  const projectId = project?._id;
+  const projectStarted = shouldActivateProject(project?.startDate, project?.startDateUndecided);
+  const projectUpdatedAt = normalizeUpdatedAt(project?.updatedAt);
+  const cachedBundle = await getCachedProjectTaskBundle(projectId.toString());
+  if (Array.isArray(cachedBundle?.tasks) && cachedBundle.updatedAt === projectUpdatedAt) {
+    const normalizedTasks = recalculateProjectTaskState(cachedBundle.tasks.map(serializeTask), {
+      projectStarted,
+    }).map(serializeTask);
+    await setCachedProjectTasks(projectId.toString(), normalizedTasks, projectUpdatedAt);
+    return normalizedTasks;
   }
 
   const bundle = await db.collection("fms_project_task_bundles").findOne({ projectId });
   if (bundle && Array.isArray(bundle.tasks)) {
-    const serializedTasks = bundle.tasks.map(serializeTask);
-    void setCachedProjectTasks(projectId.toString(), serializedTasks);
+    const serializedTasks = recalculateProjectTaskState(bundle.tasks, {
+      projectStarted,
+    }).map(serializeTask);
+    await setCachedProjectTasks(projectId.toString(), serializedTasks, projectUpdatedAt || bundle.updatedAt);
     return serializedTasks;
   }
   return [];
@@ -113,7 +127,7 @@ export async function GET(request, { params }) {
         )
       : null;
 
-    const serializedTasks = await loadProjectTasks(db, _id);
+    const serializedTasks = await loadProjectTasks(db, project);
     const projectedTasks =
       view === "flow"
         ? serializedTasks.map(projectTaskProjection)
@@ -127,7 +141,11 @@ export async function GET(request, { params }) {
     const totalPages = Math.max(1, Math.ceil(totalTasks / limit));
 
     return NextResponse.json({
-      project: serializeProject(project),
+      project: {
+        ...serializeProject(project),
+        active_task: buildActiveTaskSnapshot(serializedTasks),
+        totalTasks,
+      },
       template: template
         ? {
             _id: template._id.toString(),
@@ -224,7 +242,7 @@ export async function PATCH(request, { params }) {
           },
         }
       );
-      void setCachedProjectTasks(id, serializedTasks);
+      await setCachedProjectTasks(id, serializedTasks, result?.updatedAt || new Date());
     }
 
     return NextResponse.json({

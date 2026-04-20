@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const links = [
   { label: "FMS Template", href: "/Templates/fms-template" },
+  { label: "Manage Templates", href: "/Templates/fms-template/manage" },
   { label: "Table View", href: "/Templates/fms-template/table" },
   { label: "Flow View", href: "/Templates/fms-template/flow" },
   { label: "New Project", href: "/Templates/new-project" },
@@ -20,6 +21,7 @@ export default function FmsTemplateNav() {
       {links.map((link) => {
         const isActive =
           pathname === link.href ||
+          (link.href === "/Templates/fms-template/manage" && pathname === "/Templates/fms-template/manage") ||
           (link.href === "/Templates/projects" && pathname.startsWith("/Templates/projects/") && pathname !== "/Templates/projects/delete-approval");
         return (
           <Link

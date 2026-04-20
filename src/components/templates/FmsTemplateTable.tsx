@@ -51,6 +51,7 @@ export default function FmsTemplateTable() {
   });
   const [pendingFocusTaskId, setPendingFocusTaskId] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     limit: 100,
@@ -62,7 +63,6 @@ export default function FmsTemplateTable() {
   const [loading, setLoading] = useState(true);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [error, setError] = useState("");
-  const PAGE_SIZE = 100;
 
   useEffect(() => {
     const loadLibrary = async () => {
@@ -101,7 +101,7 @@ export default function FmsTemplateTable() {
         const params = new URLSearchParams({
           view: "table",
           page: String(currentPage),
-          limit: String(PAGE_SIZE),
+          limit: String(pageSize),
         });
         const response = await fetch(`/api/templates/fms/${selectedTemplateId}?${params.toString()}`, {
           cache: "no-store",
@@ -126,7 +126,7 @@ export default function FmsTemplateTable() {
         setPagination(
           data.pagination || {
             currentPage: 1,
-            limit: PAGE_SIZE,
+            limit: pageSize,
             totalTasks: data.tasks.length,
             totalPages: 1,
             hasPrevPage: false,
@@ -141,7 +141,11 @@ export default function FmsTemplateTable() {
     };
 
     void loadTemplateDetails();
-  }, [selectedTemplateId, currentPage]);
+  }, [selectedTemplateId, currentPage, pageSize]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [pageSize, selectedTemplateId]);
 
   useEffect(() => {
     if (!pendingFocusTaskId) {
@@ -200,6 +204,35 @@ export default function FmsTemplateTable() {
     const row = rowRefs.current[targetTaskId];
     row?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
+
+  const paginationControls = (
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+      <label className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+        <span>Tasks per page</span>
+        <select
+          value={pageSize}
+          onChange={(event) => setPageSize(Number(event.target.value) || 100)}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none focus:border-gray-900 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+        >
+          {[50, 100, 150, 200, 300].map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+      <Pagination
+        currentPage={pagination.currentPage}
+        totalPages={pagination.totalPages}
+        onPageChange={(page) => {
+          if (page < 1 || page > pagination.totalPages || page === pagination.currentPage) {
+            return;
+          }
+          setCurrentPage(page);
+        }}
+      />
+    </div>
+  );
 
   return (
     <div className="mx-auto max-w-screen-2xl p-4 md:p-6 2xl:p-10">
@@ -265,16 +298,7 @@ export default function FmsTemplateTable() {
                 {Math.min(pagination.currentPage * pagination.limit, pagination.totalTasks || tasks.length)} of{" "}
                 {pagination.totalTasks || tasks.length} rows
               </p>
-              <Pagination
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={(page) => {
-                  if (page < 1 || page > pagination.totalPages || page === pagination.currentPage) {
-                    return;
-                  }
-                  setCurrentPage(page);
-                }}
-              />
+              {paginationControls}
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
@@ -345,6 +369,8 @@ export default function FmsTemplateTable() {
                 </tbody>
               </table>
             </div>
+
+            <div className="flex justify-end">{paginationControls}</div>
           </div>
         ) : (
           <p className="text-sm text-gray-500 dark:text-gray-400">No template selected.</p>

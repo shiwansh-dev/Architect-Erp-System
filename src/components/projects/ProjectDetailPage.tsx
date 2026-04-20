@@ -25,6 +25,19 @@ type Project = {
   }>;
 };
 
+function buildActiveTaskSummary(tasks: FmsTask[]) {
+  return tasks
+    .filter((task) => task.isActive)
+    .map((task) => ({
+      _id: task._id,
+      title: task.title,
+      taskNumber: task.taskNumber,
+      processes: task.processes,
+      spacesName: task.spacesName,
+      assigneeName: task.assigneeName,
+    }));
+}
+
 type ProjectResponse = {
   project: Project;
   template: Pick<FmsTemplate, "_id" | "name" | "headerRow1" | "headerRow2" | "totalTasks"> | null;
@@ -78,6 +91,7 @@ export default function ProjectDetailPage({ projectId }: { projectId: string }) 
         ? {
             ...currentProject,
             totalTasks: nextTasks.length,
+            active_task: buildActiveTaskSummary(nextTasks),
           }
         : currentProject
     );
@@ -185,20 +199,12 @@ export default function ProjectDetailPage({ projectId }: { projectId: string }) 
             template={template}
             tasks={allTasks}
             onTaskUpdated={(updatedTask) => {
-              setAllTasks((currentTasks) =>
-                currentTasks.map((task) => (task._id === updatedTask._id ? updatedTask : task))
+              applyTasksSnapshot(
+                allTasks.map((task) => (task._id === updatedTask._id ? updatedTask : task))
               );
             }}
             onTaskDeleted={(taskId) => {
-              setAllTasks((currentTasks) => currentTasks.filter((task) => task._id !== taskId));
-              setProject((currentProject) =>
-                currentProject
-                  ? {
-                      ...currentProject,
-                      totalTasks: Math.max(0, (currentProject.totalTasks ?? allTasks.length) - 1),
-                    }
-                  : currentProject
-              );
+              applyTasksSnapshot(allTasks.filter((task) => task._id !== taskId));
             }}
             onTasksChanged={applyTasksSnapshot}
           />
@@ -219,8 +225,8 @@ export default function ProjectDetailPage({ projectId }: { projectId: string }) 
               setPage(nextPage);
             }}
             onTaskUpdated={(updatedTask) => {
-              setAllTasks((currentTasks) =>
-                currentTasks.map((task) => (task._id === updatedTask._id ? updatedTask : task))
+              applyTasksSnapshot(
+                allTasks.map((task) => (task._id === updatedTask._id ? updatedTask : task))
               );
             }}
             onTasksChanged={applyTasksSnapshot}

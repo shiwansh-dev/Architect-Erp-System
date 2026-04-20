@@ -331,7 +331,7 @@ export async function POST(request) {
 
     await db.collection("fms_projects").insertOne(projectDocument);
     await db.collection("fms_project_task_bundles").insertOne(projectTaskBundle);
-    void setCachedProjectTasks(projectId.toString(), projectTaskBundle.tasks);
+    await setCachedProjectTasks(projectId.toString(), projectTaskBundle.tasks, now);
 
     return NextResponse.json(
       {
