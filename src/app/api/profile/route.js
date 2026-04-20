@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise, { databaseName } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { USER_COLLECTION } from "@/lib/user-collection";
 
 // GET current profile by user ID
 export async function GET(request) {
@@ -14,7 +15,7 @@ export async function GET(request) {
 
     const client = await clientPromise;
     const db = client.db(databaseName);
-    const profile = await db.collection("users").findOne({ _id: new ObjectId(userId) });
+    const profile = await db.collection(USER_COLLECTION).findOne({ _id: new ObjectId(userId) });
     
     if (!profile) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -61,7 +62,7 @@ export async function PUT(request) {
       Object.assign(update, socialSet);
     }
 
-    const result = await db.collection("users").updateOne(
+    const result = await db.collection(USER_COLLECTION).updateOne(
       { _id: new ObjectId(userId) },
       { $set: update }
     );
@@ -76,5 +77,4 @@ export async function PUT(request) {
     return NextResponse.json({ error: "Failed to update profile" }, { status: 500 });
   }
 }
-
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise, { databaseName } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { USER_COLLECTION } from "@/lib/user-collection";
 
 // GET user by ID
 export async function GET(request, { params }) {
@@ -14,7 +15,7 @@ export async function GET(request, { params }) {
     const client = await clientPromise;
     const db = client.db(databaseName);
     
-    const user = await db.collection("users").findOne(
+    const user = await db.collection(USER_COLLECTION).findOne(
       { _id: new ObjectId(id) },
       { projection: { password: 0 } } // Exclude password
     );
@@ -68,7 +69,7 @@ export async function PUT(request, { params }) {
       queryConditions.push({ email });
     }
     
-    const existingUser = await db.collection("users").findOne({
+    const existingUser = await db.collection(USER_COLLECTION).findOne({
       $or: queryConditions,
       _id: { $ne: new ObjectId(id) }
     });
@@ -93,7 +94,7 @@ export async function PUT(request, { params }) {
       updatedAt: new Date()
     };
 
-    const result = await db.collection("users").updateOne(
+    const result = await db.collection(USER_COLLECTION).updateOne(
       { _id: new ObjectId(id) },
       { $set: updateData }
     );
@@ -103,7 +104,7 @@ export async function PUT(request, { params }) {
     }
 
     // Get updated user
-    const updatedUser = await db.collection("users").findOne(
+    const updatedUser = await db.collection(USER_COLLECTION).findOne(
       { _id: new ObjectId(id) },
       { projection: { password: 0 } }
     );
@@ -133,7 +134,7 @@ export async function DELETE(request, { params }) {
     const client = await clientPromise;
     const db = client.db(databaseName);
 
-    const result = await db.collection("users").deleteOne({ _id: new ObjectId(id) });
+    const result = await db.collection(USER_COLLECTION).deleteOne({ _id: new ObjectId(id) });
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -148,4 +149,3 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
   }
 }
-

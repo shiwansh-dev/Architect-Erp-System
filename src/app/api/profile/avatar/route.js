@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise, { databaseName } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { USER_COLLECTION } from "@/lib/user-collection";
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -26,7 +27,7 @@ export async function POST(request) {
     try {
       const client = await clientPromise;
       const db = client.db(databaseName);
-      await db.collection('users').updateOne(
+      await db.collection(USER_COLLECTION).updateOne(
         { _id: new ObjectId(userId) },
         { $set: { avatarBase64: base64, updatedAt: new Date() } }
       );
@@ -40,5 +41,4 @@ export async function POST(request) {
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }
-
 

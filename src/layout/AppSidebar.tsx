@@ -7,15 +7,10 @@ import { useSidebar } from "../context/SidebarContext";
 import { useAllowedPath } from "../hooks/useAllowedPath";
 import {
   BoxCubeIcon,
-  CalenderIcon,
   ChevronDownIcon,
   GridIcon,
   HorizontaLDots,
-  ListIcon,
-  PageIcon,
-  PieChartIcon,
   PlugInIcon,
-  TableIcon,
   UserCircleIcon,
 } from "../icons/index";
 
@@ -66,50 +61,19 @@ const navItems: NavItem[] = [
       { name: "FMS Flow", path: "/Templates/fms-template/flow", pro: false },
     ],
   },
-];
-
-const layoutItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Charts",
-    subItems: [
-      { name: "Line Chart", path: "/line-chart", pro: false },
-      { name: "Bar Chart", path: "/bar-chart", pro: false },
-    ],
-  },
-  {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/calendar",
-  },
-  {
-    name: "Forms",
-    icon: <ListIcon />,
-    subItems: [{ name: "Form Elements", path: "/form-elements", pro: false }],
-  },
-  {
-    name: "Tables",
-    icon: <TableIcon />,
-    subItems: [{ name: "Basic Tables", path: "/basic-tables", pro: false }],
-  },
-  {
-    name: "Pages",
-    icon: <PageIcon />,
-    subItems: [
-      { name: "Blank Page", path: "/blank", pro: false },
-      { name: "404 Error", path: "/error-404", pro: false },
-    ],
-  },
   {
     icon: <BoxCubeIcon />,
-    name: "UI Elements",
+    name: "Projects",
     subItems: [
-      { name: "Alerts", path: "/alerts", pro: false },
-      { name: "Avatar", path: "/avatars", pro: false },
-      { name: "Badge", path: "/badge", pro: false },
-      { name: "Buttons", path: "/buttons", pro: false },
-      { name: "Images", path: "/images", pro: false },
-      { name: "Videos", path: "/videos", pro: false },
+      { name: "Projects", path: "/Templates/projects", pro: false },
+      { name: "New Project", path: "/Templates/new-project", pro: false },
+    ],
+  },
+  {
+    icon: <UserCircleIcon />,
+    name: "Admin",
+    subItems: [
+      { name: "Delete Approval", path: "/Templates/projects/delete-approval", pro: false },
     ],
   },
 ];
@@ -200,7 +164,7 @@ const AppSidebar: React.FC = () => {
 
   const renderMenuItems = (
     navItems: NavItem[],
-    menuType: "main" | "layout" | "others"
+    menuType: "main" | "others"
   ) => (
     <ul className="flex flex-col gap-4">
       {navItems.map((nav, index) => {
@@ -349,7 +313,7 @@ const AppSidebar: React.FC = () => {
   );
 
   const [openSubmenu, setOpenSubmenu] = useState<{
-    type: "main" | "layout" | "others";
+    type: "main" | "others";
     index: number;
   } | null>(null);
   const [subMenuHeight, setSubMenuHeight] = useState<Record<string, number>>(
@@ -363,19 +327,14 @@ const AppSidebar: React.FC = () => {
   useEffect(() => {
     // Check if the current path matches any submenu item
     let submenuMatched = false;
-    ["main", "layout", "others"].forEach((menuType) => {
-      const items =
-        menuType === "main"
-          ? navItems
-          : menuType === "layout"
-            ? layoutItems
-            : othersItems;
+    ["main", "others"].forEach((menuType) => {
+      const items = menuType === "main" ? navItems : othersItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
           nav.subItems.forEach((subItem) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
-                type: menuType as "main" | "layout" | "others",
+                type: menuType as "main" | "others",
                 index,
               });
               submenuMatched = true;
@@ -404,7 +363,7 @@ const AppSidebar: React.FC = () => {
     }
   }, [openSubmenu]);
 
-  const handleSubmenuToggle = (index: number, menuType: "main" | "layout" | "others") => {
+  const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
     setOpenSubmenu((prevOpenSubmenu) => {
       if (
         prevOpenSubmenu &&
@@ -456,7 +415,6 @@ const AppSidebar: React.FC = () => {
   }
 
   const visibleFactoryManagementItems = getVisibleNavItems(factoryManagementItems);
-  const visibleLayoutItems = getVisibleNavItems(layoutItems);
   const visibleOtherItems = getVisibleNavItems(othersItems);
 
   return (
@@ -528,17 +486,6 @@ const AppSidebar: React.FC = () => {
                   </h2>
                 )}
                 {renderMenuItems(factoryManagementItems, "main")}
-              </div>
-            )}
-
-            {visibleLayoutItems.length > 0 && (
-              <div className="">
-                {(isExpanded || isHovered || isMobileOpen) && (
-                <h2 className="mb-4 text-xs uppercase flex leading-[20px] text-gray-400 justify-start">
-                  Layout
-                </h2>
-                )}
-                {renderMenuItems(layoutItems, "layout")}
               </div>
             )}
 

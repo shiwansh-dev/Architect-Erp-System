@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise, { databaseName } from "@/lib/mongodb";
+import { USER_COLLECTION } from "@/lib/user-collection";
 
 // GET all users with pagination and search
 export async function GET(request) {
@@ -25,11 +26,11 @@ export async function GET(request) {
     } : {};
 
     // Get total count for pagination
-    const totalUsers = await db.collection("users").countDocuments(searchQuery);
+    const totalUsers = await db.collection(USER_COLLECTION).countDocuments(searchQuery);
     const totalPages = Math.ceil(totalUsers / limit);
 
     // Get users with pagination
-    const users = await db.collection("users")
+    const users = await db.collection(USER_COLLECTION)
       .find(searchQuery, { projection: { password: 0 } }) // Exclude password
       .sort({ [sortBy]: sortOrder === 'desc' ? -1 : 1 })
       .skip((page - 1) * limit)
@@ -88,7 +89,7 @@ export async function POST(request) {
       queryConditions.push({ email });
     }
     
-    const existingUser = await db.collection("users").findOne({ 
+    const existingUser = await db.collection(USER_COLLECTION).findOne({ 
       $or: queryConditions
     });
     if (existingUser) {
@@ -113,10 +114,10 @@ export async function POST(request) {
       updatedAt: new Date()
     };
 
-    const result = await db.collection("users").insertOne(userData);
+    const result = await db.collection(USER_COLLECTION).insertOne(userData);
 
     // Get the created user (without password)
-    const newUser = await db.collection("users").findOne(
+    const newUser = await db.collection(USER_COLLECTION).findOne(
       { _id: result.insertedId },
       { projection: { password: 0 } }
     );
@@ -136,4 +137,3 @@ export async function POST(request) {
     );
   }
 }
-

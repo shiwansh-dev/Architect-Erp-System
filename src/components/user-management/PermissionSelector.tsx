@@ -44,6 +44,19 @@ const SECTIONS: { label: string; items: { label: string; path: string }[] }[] = 
       { label: 'FMS Template Flow', path: '/Templates/fms-template/flow' },
     ],
   },
+  {
+    label: 'Projects',
+    items: [
+      { label: 'Projects', path: '/Templates/projects' },
+      { label: 'New Project', path: '/Templates/new-project' },
+    ],
+  },
+  {
+    label: 'Admin',
+    items: [
+      { label: 'Delete Approval', path: '/Templates/projects/delete-approval' },
+    ],
+  },
 ];
 
 const ALL_ITEMS = SECTIONS.flatMap((section) => section.items);

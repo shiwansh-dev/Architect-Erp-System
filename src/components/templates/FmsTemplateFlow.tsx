@@ -56,6 +56,11 @@ const NODE_WIDTH = 280;
 const NODE_HEIGHT = 132;
 const VIEWPORT_BUFFER = 600;
 
+function formatAllottedDaysLabel(value: string) {
+  const normalized = String(value || "").trim() || "1";
+  return `${normalized} day${normalized === "1" ? "" : "s"}`;
+}
+
 function getTaskPosition(task: FmsTask) {
   return {
     x: task.position?.x ?? 80,
@@ -1088,9 +1093,12 @@ export default function FmsTemplateFlow() {
                     >
                       <div className="text-sm font-semibold text-gray-900 dark:text-white">{buildTitle(task)}</div>
                       <div className="mt-2 line-clamp-2 text-xs text-gray-600 dark:text-gray-400">
-                        {task.taskDescription || task.parallelSteps || task.processes || "No task details"}
+                        {task.howWillItBeDone || task.taskDescription || task.parallelSteps || task.processes || "No task details"}
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
+                        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                          {formatAllottedDaysLabel(task.allottedDays)}
+                        </span>
                         {task.ownerCode ? (
                           <span
                             className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
@@ -1112,6 +1120,17 @@ export default function FmsTemplateFlow() {
                             {task.assigneeName}
                           </span>
                         ) : null}
+                        {task.status ? (
+                          <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">
+                            {task.status}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-3 grid gap-1 text-[11px] text-gray-500 dark:text-gray-400">
+                        {task.delegationDate ? <div>Delegation: {task.delegationDate}</div> : null}
+                        {task.changedDelegationDate ? <div>Changed: {task.changedDelegationDate}</div> : null}
+                        {task.secondaryDelegationDate ? <div>Delegation 2: {task.secondaryDelegationDate}</div> : null}
+                        {task.drawingNumber ? <div>DWG: {task.drawingNumber}</div> : null}
                       </div>
                     </button>
                     <button
@@ -1218,10 +1237,74 @@ export default function FmsTemplateFlow() {
                   </select>
                 </label>
                 <label className="block text-sm">
-                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">Assignee Name</span>
+                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">WHO will do it (NAME)</span>
                   <input
                     value={editingTask.assigneeName}
                     onChange={(event) => setEditingTask({ ...editingTask, assigneeName: event.target.value })}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </label>
+                <label className="block text-sm md:col-span-2">
+                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">HOW will it be done</span>
+                  <textarea
+                    rows={3}
+                    value={editingTask.howWillItBeDone || ""}
+                    onChange={(event) => setEditingTask({ ...editingTask, howWillItBeDone: event.target.value })}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">Allotted Days</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editingTask.allottedDays}
+                    onChange={(event) =>
+                      setEditingTask({
+                        ...editingTask,
+                        allottedDays: event.target.value || "1",
+                      })
+                    }
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">STATUS</span>
+                  <input
+                    value={editingTask.status}
+                    onChange={(event) => setEditingTask({ ...editingTask, status: event.target.value })}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">DELEGATION DATE</span>
+                  <input
+                    value={editingTask.delegationDate}
+                    onChange={(event) => setEditingTask({ ...editingTask, delegationDate: event.target.value })}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">CHANGED DELEGATION DATE</span>
+                  <input
+                    value={editingTask.changedDelegationDate}
+                    onChange={(event) => setEditingTask({ ...editingTask, changedDelegationDate: event.target.value })}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">DELEGATION DATE 2</span>
+                  <input
+                    value={editingTask.secondaryDelegationDate}
+                    onChange={(event) => setEditingTask({ ...editingTask, secondaryDelegationDate: event.target.value })}
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
+                  />
+                </label>
+                <label className="block text-sm">
+                  <span className="mb-2 block font-medium text-gray-700 dark:text-gray-300">DWG. NO.</span>
+                  <input
+                    value={editingTask.drawingNumber}
+                    onChange={(event) => setEditingTask({ ...editingTask, drawingNumber: event.target.value })}
                     className="w-full rounded-xl border border-gray-200 px-4 py-3 dark:border-gray-700 dark:bg-gray-950 dark:text-white"
                   />
                 </label>

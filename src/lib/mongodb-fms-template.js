@@ -1,10 +1,14 @@
 import { MongoClient } from "mongodb";
 
 const uri =
+  process.env.MONGODB_URI ||
   process.env.FMS_TEMPLATE_MONGODB_URI ||
   "mongodb://cmc1uz1nt00019yt22i2wgjkn:sYbp6IBr4UyA5u4cuiqZ1iFl@62.171.177.91:27017/?readPreference=primary&ssl=false";
 
-const databaseName = process.env.FMS_TEMPLATE_MONGODB_DATABASE_NAME || "fms_templates";
+const databaseName =
+  process.env.MONGODB_DATABASE_NAME ||
+  process.env.FMS_TEMPLATE_MONGODB_DATABASE_NAME ||
+  "fms_templates";
 
 if (!uri) {
   throw new Error("Missing FMS template MongoDB connection string");
@@ -20,6 +24,9 @@ async function ensureIndexes(client) {
       await Promise.all([
         db.collection("fms_templates").createIndex({ importedAt: -1 }),
         db.collection("fms_template_tasks").createIndex({ templateId: 1, rowNumber: 1 }),
+        db.collection("fms_projects").createIndex({ createdAt: -1 }),
+        db.collection("fms_projects").createIndex({ templateId: 1, createdAt: -1 }),
+        db.collection("fms_project_task_bundles").createIndex({ projectId: 1 }, { unique: true }),
       ]);
     })().catch((error) => {
       ensuredIndexesPromise = null;
@@ -34,8 +41,8 @@ const clientPromise = {
   then: (resolve, reject) => {
     if (!cachedPromise) {
       const client = new MongoClient(uri, {
-        ssl: false,
-        readPreference: "primary",
+        ssl: String(process.env.MONGODB_SSL || "false").toLowerCase() === "true",
+        readPreference: process.env.MONGODB_READ_PREFERENCE || "primary",
       });
       cachedPromise = client.connect().then(async (connectedClient) => {
         await ensureIndexes(connectedClient);

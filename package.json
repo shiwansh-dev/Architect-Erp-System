@@ -8,7 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "seed-cnc": "node scripts/insert-sample-data.js",
-    "generate-previews": "node scripts/generate-storage-previews.js"
+    "generate-previews": "node scripts/generate-storage-previews.js",
+    "migrate:project-task-bundles": "node scripts/migrate-project-task-bundles.js",
+    "migrate:project-task-state": "node scripts/migrate-project-task-state.js"
   },
   "engines": {
     "node": "20.x"

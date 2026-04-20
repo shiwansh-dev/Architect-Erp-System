@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise, { databaseName } from "@/lib/mongodb";
+import { USER_COLLECTION } from "@/lib/user-collection";
 
 export async function POST(request) {
   try {
@@ -10,7 +11,7 @@ export async function POST(request) {
     const db = client.db(databaseName);
 
     // Check if user already exists
-    const existingUser = await db.collection("users").findOne({ email });
+    const existingUser = await db.collection(USER_COLLECTION).findOne({ email });
     if (existingUser) {
       return NextResponse.json(
         { error: "User with this email already exists" },
@@ -19,7 +20,7 @@ export async function POST(request) {
     }
 
     // Insert new user
-    const result = await db.collection("users").insertOne({
+    const result = await db.collection(USER_COLLECTION).insertOne({
       firstName: fname,
       lastName: lname,
       email,

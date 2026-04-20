@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise, { databaseName } from "@/lib/mongodb";
+import { USER_COLLECTION } from "@/lib/user-collection";
 
 export async function POST(request) {
   try {
@@ -10,7 +11,7 @@ export async function POST(request) {
     const db = client.db(databaseName);
 
     // Find user by username - get all fields except password for comparison
-    const user = await db.collection("users").findOne(
+    const user = await db.collection(USER_COLLECTION).findOne(
       { username }, 
       { projection: {} } // Get all fields including password for authentication
     );

@@ -23,6 +23,7 @@ export type FmsTask = {
   taskDescription: string;
   ownerCode: string;
   methodCode: string;
+  howWillItBeDone: string;
   dueRule: string;
   processNotes: string;
   spacesName: string;
@@ -33,6 +34,7 @@ export type FmsTask = {
   drawingNumber: string;
   status: string;
   assigneeName: string;
+  allottedDays: string;
   reasonComment: string;
   taskLink: string;
   reviewCode: string;
@@ -43,6 +45,8 @@ export type FmsTask = {
   title: string;
   dependsOnTaskIds: string[];
   relationshipType: string;
+  isActive?: boolean;
+  isDone?: boolean;
   hasOwnerCodeError?: boolean;
   position: {
     x: number;

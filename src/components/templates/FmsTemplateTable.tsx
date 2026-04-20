@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FmsTask, FmsTemplate } from "./fmsTemplateTypes";
 import Pagination from "@/components/tables/Pagination";
+import { DEFAULT_FMS_SECONDARY_HEADERS } from "@/lib/fms-table-headers";
 
 type TemplateDetails = {
   template: FmsTemplate;
@@ -26,6 +27,13 @@ type TemplateDetails = {
 };
 
 const OWNER_CODE_COLUMN_INDEX = 7;
+const ALLOTTED_DAYS_COLUMN_INDEX = 19;
+const HOW_WILL_IT_BE_DONE_LABEL = "HOW will it be done";
+const TASK_LINK_COLUMN_INDEX = 21;
+
+function isHttpUrl(value: string) {
+  return /^https?:\/\//i.test(String(value || "").trim());
+}
 
 export default function FmsTemplateTable() {
   const rowRefs = useRef<Record<string, HTMLTableRowElement | null>>({});
@@ -156,6 +164,20 @@ export default function FmsTemplateTable() {
     () => new Set(validation.currentPageInvalidTaskIds),
     [validation.currentPageInvalidTaskIds]
   );
+  const headerRow1 = useMemo(
+    () => (template ? [...template.headerRow1, ""] : []),
+    [template]
+  );
+  const headerRow2 = useMemo(
+    () =>
+      template
+        ? [
+            ...template.headerRow2.map((cell, index) => cell || DEFAULT_FMS_SECONDARY_HEADERS[index] || `COLUMN ${index + 1}`),
+            HOW_WILL_IT_BE_DONE_LABEL,
+          ]
+        : [],
+    [template]
+  );
 
   const handleShowError = () => {
     if (!validation.invalidOwnerCodeCount) {
@@ -256,10 +278,10 @@ export default function FmsTemplateTable() {
             </div>
 
             <div className="overflow-x-auto rounded-2xl border border-gray-200 dark:border-gray-800">
-              <table className="min-w-[1800px] border-collapse text-left text-xs">
+              <table className="min-w-[2140px] border-collapse text-left text-xs">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-900">
-                    {template.headerRow1.map((cell, index) => (
+                    {headerRow1.map((cell, index) => (
                       <th
                         key={`h1-${index}`}
                         className="border border-gray-200 px-3 py-2 font-semibold text-gray-700 dark:border-gray-800 dark:text-gray-200"
@@ -269,7 +291,7 @@ export default function FmsTemplateTable() {
                     ))}
                   </tr>
                   <tr className="bg-white dark:bg-gray-950">
-                    {template.headerRow2.map((cell, index) => (
+                    {headerRow2.map((cell, index) => (
                       <th
                         key={`h2-${index}`}
                         className="border border-gray-200 px-3 py-2 font-medium text-gray-600 dark:border-gray-800 dark:text-gray-300"
@@ -281,7 +303,7 @@ export default function FmsTemplateTable() {
                 </thead>
                 <tbody>
                   {tasks.map((task, rowIndex) => {
-                    const row = task.rawCells || [];
+                    const row = [...(task.rawCells || []), task.howWillItBeDone || ""];
                     const hasOwnerCodeError = invalidTaskIdSet.has(task._id) || task.hasOwnerCodeError;
                     return (
                     <tr
@@ -296,13 +318,26 @@ export default function FmsTemplateTable() {
                       {row.map((cell, cellIndex) => (
                         <td
                           key={`cell-${rowIndex}-${cellIndex}`}
-                          className={`max-w-[240px] whitespace-pre-wrap border px-3 py-2 text-gray-700 dark:text-gray-300 ${
+                          className={`max-w-[240px] whitespace-pre-wrap break-words [overflow-wrap:anywhere] border px-3 py-2 text-gray-700 dark:text-gray-300 ${
                             hasOwnerCodeError && cellIndex === OWNER_CODE_COLUMN_INDEX
                               ? "border-red-300 bg-red-100/80 font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+                              : cellIndex === ALLOTTED_DAYS_COLUMN_INDEX
+                                ? "border-emerald-200 bg-emerald-50/70 font-semibold text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-200"
                               : "border-gray-200 dark:border-gray-800"
                           }`}
                         >
-                          {cell || "\u00A0"}
+                          {cellIndex === TASK_LINK_COLUMN_INDEX && isHttpUrl(cell) ? (
+                            <a
+                              href={cell}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 underline break-words [overflow-wrap:anywhere] hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                            >
+                              {cell}
+                            </a>
+                          ) : (
+                            cell || "\u00A0"
+                          )}
                         </td>
                       ))}
                     </tr>

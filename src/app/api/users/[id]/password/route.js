@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import clientPromise, { databaseName } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { USER_COLLECTION } from "@/lib/user-collection";
 
 // GET user password by ID (admin only - for generating login URLs)
 export async function GET(request, { params }) {
@@ -14,7 +15,7 @@ export async function GET(request, { params }) {
     const client = await clientPromise;
     const db = client.db(databaseName);
     
-    const user = await db.collection("users").findOne(
+    const user = await db.collection(USER_COLLECTION).findOne(
       { _id: new ObjectId(id) },
       { projection: { password: 1, username: 1 } } // Only get password and username
     );
@@ -32,4 +33,3 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: "Failed to fetch user password" }, { status: 500 });
   }
 }
-

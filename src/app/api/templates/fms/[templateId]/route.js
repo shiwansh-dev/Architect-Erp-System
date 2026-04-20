@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise, { databaseName } from "@/lib/mongodb-fms-template";
 import masterClientPromise, { databaseName as masterDatabaseName } from "@/lib/mongodb";
+import { serializeTask, serializeTemplate } from "@/lib/fms-template";
 import {
   getCachedTemplateBundle,
   syncTemplateBundleCache,
@@ -78,8 +79,9 @@ export async function GET(_request, { params }) {
     if (!bundle?.template) {
       return NextResponse.json({ error: "Template not found" }, { status: 404 });
     }
+    const normalizedTemplate = serializeTemplate(bundle.template);
     const ownerCodes = await getActiveOwnerCodes();
-    const allTasks = Array.isArray(bundle.tasks) ? bundle.tasks : [];
+    const allTasks = Array.isArray(bundle.tasks) ? bundle.tasks.map(serializeTask) : [];
     const totalTasks = allTasks.length;
     const projectedTasks =
       view === "flow"
@@ -93,7 +95,14 @@ export async function GET(_request, { params }) {
             parallelSteps: task.parallelSteps,
             taskDescription: task.taskDescription,
             ownerCode: task.ownerCode,
+            howWillItBeDone: task.howWillItBeDone,
+            delegationDate: task.delegationDate,
+            changedDelegationDate: task.changedDelegationDate,
+            secondaryDelegationDate: task.secondaryDelegationDate,
+            drawingNumber: task.drawingNumber,
+            status: task.status,
             assigneeName: task.assigneeName,
+            allottedDays: task.allottedDays,
             relationshipType: task.relationshipType,
             dependsOnTaskIds: task.dependsOnTaskIds,
             position: task.position,
@@ -112,7 +121,7 @@ export async function GET(_request, { params }) {
     const validation = buildValidationMeta(allTasks, taskRows, ownerCodes, limit);
 
     return NextResponse.json({
-      template: bundle.template,
+      template: normalizedTemplate,
       tasks: attachOwnerCodeErrors(taskRows, validation.currentPageInvalidTaskIds),
       ownerCodes,
       validation,
@@ -225,8 +234,9 @@ export async function PATCH(request, { params }) {
     }
 
     const bundle = await syncTemplateBundleCache(db, _id);
+    const normalizedTemplate = bundle?.template ? serializeTemplate(bundle.template) : null;
     const ownerCodes = await getActiveOwnerCodes();
-    const allTasks = Array.isArray(bundle?.tasks) ? bundle.tasks : [];
+    const allTasks = Array.isArray(bundle?.tasks) ? bundle.tasks.map(serializeTask) : [];
     const projectedTasks = allTasks.map((task) => ({
       _id: task._id,
       templateId: task.templateId,
@@ -237,7 +247,14 @@ export async function PATCH(request, { params }) {
       parallelSteps: task.parallelSteps,
       taskDescription: task.taskDescription,
       ownerCode: task.ownerCode,
+      howWillItBeDone: task.howWillItBeDone,
+      delegationDate: task.delegationDate,
+      changedDelegationDate: task.changedDelegationDate,
+      secondaryDelegationDate: task.secondaryDelegationDate,
+      drawingNumber: task.drawingNumber,
+      status: task.status,
       assigneeName: task.assigneeName,
+      allottedDays: task.allottedDays,
       relationshipType: task.relationshipType,
       dependsOnTaskIds: task.dependsOnTaskIds,
       position: task.position,
@@ -253,7 +270,7 @@ export async function PATCH(request, { params }) {
 
     return NextResponse.json({
       message: body.action === "save-layout" ? "Layout saved successfully" : "Layout reset successfully",
-      template: bundle.template,
+      template: normalizedTemplate,
       tasks: attachOwnerCodeErrors(taskRows, validation.currentPageInvalidTaskIds),
       ownerCodes,
       validation,

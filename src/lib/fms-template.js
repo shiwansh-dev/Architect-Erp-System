@@ -1,5 +1,6 @@
 import { ObjectId } from "mongodb";
 import * as XLSX from "xlsx";
+import { DEFAULT_FMS_SECONDARY_HEADERS } from "@/lib/fms-table-headers";
 
 const COLUMN_KEYS = [
   "taskForDelegation",
@@ -21,6 +22,7 @@ const COLUMN_KEYS = [
   "drawingNumber",
   "status",
   "assigneeName",
+  "allottedDays",
   "reasonComment",
   "taskLink",
   "extraColumn22",
@@ -31,42 +33,36 @@ const COLUMN_KEYS = [
   "supportName",
 ];
 
-const SECONDARY_HEADERS = [
-  "TASK FOR DELEGATION",
-  "MAIN HEADING",
-  "SUB -HEADING",
-  "NO.",
-  "PROCESSES",
-  "PARALLEL STEPS",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "SPACES NAME",
-  "PL. FMS. DATE",
-  "DELEGATION DATE",
-  "CHANGED DELEGATION DATE",
-  "DELEGATION DATE",
-  "DWG. NO.",
-  "STATUS",
-  "WHO will do it (NAME)",
-  "RSN COMMENT",
-  "TASK LINK",
-  "",
-  "",
-  "",
-  "",
-  "",
-  "",
-];
+const SECONDARY_HEADERS = DEFAULT_FMS_SECONDARY_HEADERS;
 
 const DEFAULT_NODE_WIDTH = 280;
 const DEFAULT_NODE_HEIGHT = 132;
+const DEFAULT_ALLOTTED_DAYS = "1";
+
+function normalizeAllottedDays(value) {
+  const normalized = String(value ?? "").trim();
+  return normalized || DEFAULT_ALLOTTED_DAYS;
+}
 
 function toCellArray(row) {
   const cells = Array.from({ length: COLUMN_KEYS.length }, (_, index) => row[index] ?? "");
   return cells.map((value) => String(value ?? "").trim());
+}
+
+function buildTaskRowCells(task) {
+  return COLUMN_KEYS.map((key) => {
+    if (key === "allottedDays") {
+      return normalizeAllottedDays(task[key]);
+    }
+
+    return String(task[key] ?? "").trim();
+  });
+}
+
+function normalizeHeaderRow(row, fallback) {
+  return Array.from({ length: COLUMN_KEYS.length }, (_, index) =>
+    String(row?.[index] ?? fallback[index] ?? "").trim()
+  );
 }
 
 function buildTaskTitle(task) {
@@ -96,10 +92,11 @@ function hasParallelHint(task) {
 function normalizeTask(row, rowIndex) {
   const rawCells = toCellArray(row);
   const values = Object.fromEntries(COLUMN_KEYS.map((key, index) => [key, rawCells[index]]));
+  values.allottedDays = normalizeAllottedDays(values.allottedDays);
 
   return {
     ...values,
-    rawCells,
+    rawCells: buildTaskRowCells(values),
     rowNumber: rowIndex + 1,
     title: buildTaskTitle(values),
     isParallel: hasParallelHint(values),
@@ -118,7 +115,7 @@ export function parseFmsWorkbook(fileBuffer) {
   });
 
   const headerRow1 = toCellArray(rows[0] || []);
-  const headerRow2 = toCellArray(rows[1] || SECONDARY_HEADERS);
+  const headerRow2 = normalizeHeaderRow(rows[1] || SECONDARY_HEADERS, SECONDARY_HEADERS);
   const dataRows = rows.slice(2);
 
   const normalizedRows = dataRows
@@ -127,10 +124,14 @@ export function parseFmsWorkbook(fileBuffer) {
 
   return {
     sheetName: firstSheetName,
-    headerRow1,
+    headerRow1: normalizeHeaderRow(headerRow1, Array(COLUMN_KEYS.length).fill("")),
     headerRow2,
     normalizedRows,
   };
+}
+
+export function getDefaultSecondaryHeaders() {
+  return [...SECONDARY_HEADERS];
 }
 
 export function buildInitialTaskDocuments(templateId, tasks) {
@@ -170,6 +171,7 @@ export function buildInitialTaskDocuments(templateId, tasks) {
       taskDescription: task.taskDescription,
       ownerCode: task.ownerCode,
       methodCode: task.methodCode,
+      howWillItBeDone: task.howWillItBeDone || "",
       dueRule: task.dueRule,
       processNotes: task.processNotes,
       spacesName: task.spacesName,
@@ -180,6 +182,7 @@ export function buildInitialTaskDocuments(templateId, tasks) {
       drawingNumber: task.drawingNumber,
       status: task.status,
       assigneeName: task.assigneeName,
+      allottedDays: normalizeAllottedDays(task.allottedDays),
       reasonComment: task.reasonComment,
       taskLink: task.taskLink,
       reviewCode: task.reviewCode,
@@ -188,7 +191,7 @@ export function buildInitialTaskDocuments(templateId, tasks) {
       supportName: task.supportName,
       extraColumn22: task.extraColumn22,
       extraColumn25: task.extraColumn25,
-      rawCells: task.rawCells,
+      rawCells: buildTaskRowCells(task),
       title: task.title,
       dependsOnTaskIds,
       relationshipType: isParallel ? "parallel" : index === 0 ? "root" : "sequential",
@@ -213,6 +216,8 @@ export function buildInitialTaskDocuments(templateId, tasks) {
 export function serializeTemplate(template) {
   return {
     ...template,
+    headerRow1: normalizeHeaderRow(template.headerRow1, Array(COLUMN_KEYS.length).fill("")),
+    headerRow2: normalizeHeaderRow(template.headerRow2, SECONDARY_HEADERS),
     _id: template._id.toString(),
     importedAt: template.importedAt instanceof Date ? template.importedAt.toISOString() : template.importedAt,
     updatedAt: template.updatedAt instanceof Date ? template.updatedAt.toISOString() : template.updatedAt,
@@ -220,8 +225,24 @@ export function serializeTemplate(template) {
 }
 
 export function serializeTask(task) {
-  return {
+  const normalizedTask = {
     ...task,
+    delegationDate: String(task.delegationDate ?? "").trim(),
+    changedDelegationDate: String(task.changedDelegationDate ?? "").trim(),
+    secondaryDelegationDate: String(task.secondaryDelegationDate ?? "").trim(),
+    drawingNumber: String(task.drawingNumber ?? "").trim(),
+    status: String(task.status ?? "").trim(),
+    assigneeName: String(task.assigneeName ?? "").trim(),
+    howWillItBeDone: String(task.howWillItBeDone ?? "").trim(),
+    allottedDays: normalizeAllottedDays(task.allottedDays),
+  };
+
+  return {
+    ...normalizedTask,
+    rawCells: buildTaskRowCells({
+      ...normalizedTask,
+      rawCells: Array.isArray(task.rawCells) ? task.rawCells : [],
+    }),
     _id: task._id.toString(),
     templateId: task.templateId?.toString ? task.templateId.toString() : String(task.templateId || ""),
     dependsOnTaskIds: Array.isArray(task.dependsOnTaskIds)
@@ -244,6 +265,7 @@ export function sanitizeTaskPatch(body) {
     "taskDescription",
     "ownerCode",
     "methodCode",
+    "howWillItBeDone",
     "dueRule",
     "processNotes",
     "spacesName",
@@ -254,6 +276,7 @@ export function sanitizeTaskPatch(body) {
     "drawingNumber",
     "status",
     "assigneeName",
+    "allottedDays",
     "reasonComment",
     "taskLink",
     "reviewCode",
@@ -267,9 +290,12 @@ export function sanitizeTaskPatch(body) {
   editableFields.forEach((field) => {
     if (Object.prototype.hasOwnProperty.call(body, field)) {
       const nextValue = typeof body[field] === "string" ? body[field].trim() : body[field];
-      update[field] = field === "ownerCode" && typeof nextValue === "string"
-        ? nextValue.toUpperCase()
-        : nextValue;
+      update[field] =
+        field === "ownerCode" && typeof nextValue === "string"
+          ? nextValue.toUpperCase()
+          : field === "allottedDays"
+            ? normalizeAllottedDays(nextValue)
+            : nextValue;
     }
   });
 

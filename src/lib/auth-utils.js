@@ -1,6 +1,7 @@
 // Server-side authentication and authorization utilities
 import clientPromise, { databaseName } from "@/lib/mongodb";
 import { ObjectId } from "mongodb";
+import { USER_COLLECTION } from "@/lib/user-collection";
 
 const USER_CACHE_TTL_MS = 30 * 1000;
 const userCache = globalThis.__erpUserCache || new Map();
@@ -27,7 +28,7 @@ export async function getUserFromDB(userId) {
     const client = await clientPromise;
     const db = client.db(databaseName);
     
-    const user = await db.collection("users").findOne(
+    const user = await db.collection(USER_COLLECTION).findOne(
       { _id: new ObjectId(userId) },
       { projection: { password: 0 } } // Exclude password
     );
